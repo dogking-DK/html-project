@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Light Transport Notes</title>
+    <link rel="stylesheet" href="assets/katex/katex.min.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="page-landing">
+    <nav class="site-nav" aria-label="站点导航">
+      <div class="site-nav-inner">
+        <a class="site-brand" href="index.html">Light Transport Notes</a>
+        <div class="site-nav-links">
+          <a class="site-nav-link" href="index.html" aria-current="page">首页</a>
+          <a class="site-nav-link" href="rendering-equation.html">渲染方程</a>
+          <a class="site-nav-link" href="pbr.html">PBR 模型</a>
+          <a class="site-nav-link" href="restir.html">ReSTIR 理论</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="landing-shell">
+      <div class="ambient ambient-left"></div>
+      <div class="ambient ambient-right"></div>
+
+      <header class="landing-hero">
+        <p class="eyebrow">Interactive Notes</p>
+        <h1>实时光传输学习导航</h1>
+        <p class="landing-lead">
+          这个首页现在作为总导航入口，分别通向渲染方程交互讲解、PBR 模型教学界面和 ReSTIR 理论说明。
+          整个站点保持白色主调的简约风格，便于后续继续扩展更多专题页面。
+        </p>
+      </header>
+
+      <main class="landing-content">
+        <section class="landing-card landing-card-feature">
+          <div class="landing-card-copy">
+            <p class="section-tag">Topic 01</p>
+            <h2>渲染方程交互讲解</h2>
+            <p>
+              通过类似 PPT 的多页演示理解渲染方程，支持公式项悬浮预览、点击弹窗解释和键盘/滚轮翻页。
+            </p>
+            <div class="landing-actions">
+              <a class="primary-link" href="rendering-equation.html">进入渲染方程页面</a>
+            </div>
+          </div>
+          <div class="landing-preview equation-preview">
+            <p class="formula-title">Preview</p>
+            <p class="math-display">
+              \[
+                L_o(x,\omega_o) = L_e(x,\omega_o) +
+                \int_{\Omega} f_r(x,\omega_i,\omega_o)\,
+                L_i(x,\omega_i)\,(n \cdot \omega_i)\, d\omega_i
+              \]
+            </p>
+          </div>
+        </section>
+
+        <section class="landing-grid">
+          <article class="landing-card">
+            <p class="section-tag">Topic 02</p>
+            <h2>PBR 模型交互教学</h2>
+            <p>
+              使用 WebGPU 实时渲染材质球，对比 Lambert、Phong、Blinn-Phong 和 GGX 等模型的参数变化、公式结构与视觉差异。
+            </p>
+            <a class="primary-link" href="pbr.html">进入 PBR 页面</a>
+          </article>
+
+          <article class="landing-card">
+            <p class="section-tag">Topic 03</p>
+            <h2>ReSTIR 理论说明</h2>
+            <p>
+              从 RIS / Reservoir 开始，延伸到 ReSTIR DI、GI、PT，以及 GRIS 和 Conditional RIS 的理论框架。
+            </p>
+            <a class="primary-link" href="restir.html">进入 ReSTIR 页面</a>
+          </article>
+
+          <article class="landing-card">
+            <p class="section-tag">Site Structure</p>
+            <h2>站点组织方式</h2>
+            <p>
+              首页负责导航，专题内容拆成独立页面。这样后续新增 PBR、MIS、BDPT 或路径空间章节时不会再挤在一个入口里。
+            </p>
+            <div class="chip-stack" aria-label="页面结构">
+              <span class="hero-chip">index.html</span>
+              <span class="hero-chip">rendering-equation.html</span>
+              <span class="hero-chip">pbr.html</span>
+              <span class="hero-chip">restir.html</span>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="assets/katex/katex.min.js"></script>
+    <script src="assets/katex/contrib/auto-render.min.js"></script>
+    <script src="math.js"></script>
+  </body>
+</html>

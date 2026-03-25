@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PBR Teaching Lab</title>
+    <link rel="stylesheet" href="assets/katex/katex.min.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="page-pbr">
+    <nav class="site-nav" aria-label="站点导航">
+      <div class="site-nav-inner">
+        <a class="site-brand" href="index.html">Light Transport Notes</a>
+        <div class="site-nav-links">
+          <a class="site-nav-link" href="index.html">首页</a>
+          <a class="site-nav-link" href="rendering-equation.html">渲染方程</a>
+          <a class="site-nav-link" href="pbr.html" aria-current="page">PBR 模型</a>
+          <a class="site-nav-link" href="restir.html">ReSTIR 理论</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="pbr-shell">
+      <header class="pbr-page-header">
+        <p class="eyebrow">Interactive PBR Lab</p>
+        <h1>PBR 模型交互教学界面</h1>
+        <p class="pbr-page-lead">
+          左侧使用 WebGPU 实时渲染材质球，右侧同步展示当前 BRDF 模型的公式、参数含义和适用场景。
+          当前版本先聚焦不透明表面反射模型，完成 Lambert、Phong、Blinn-Phong 与 Cook-Torrance(GGX) 的联动演示，同时预留向
+          BSDF、BSSRDF 和体积散射扩展的数据结构。
+        </p>
+        <div class="hero-chip-row" aria-label="页面能力">
+          <span class="hero-chip">WebGPU</span>
+          <span class="hero-chip">KaTeX</span>
+          <span class="hero-chip">Model Switching</span>
+          <span class="hero-chip">Parameter Linking</span>
+        </div>
+      </header>
+
+      <main class="pbr-layout">
+        <section class="pbr-stage-card" aria-labelledby="pbrCanvasTitle">
+          <div class="pbr-stage-header">
+            <div>
+              <p class="section-tag">Realtime View</p>
+              <h2 id="pbrCanvasTitle">材质球渲染展示</h2>
+            </div>
+            <div class="pbr-stage-meta">
+              <span class="pbr-backend-badge" id="gpuStatusBadge">正在检查 WebGPU...</span>
+              <p id="pbrStageHint">拖拽球体旋转视角；左上角可显示或隐藏参数面板；详细解释固定在右侧教学面板中。</p>
+            </div>
+          </div>
+
+          <div class="pbr-canvas-shell" id="pbrCanvasShell">
+            <div class="pbr-stage-toolbar">
+              <button
+                class="secondary-button pbr-panel-toggle"
+                id="toggleControlsButton"
+                type="button"
+                aria-controls="pbrControlPanel"
+                aria-expanded="true"
+              >
+                隐藏参数
+              </button>
+            </div>
+
+            <canvas id="pbrCanvas" aria-label="PBR 材质球实时渲染画布"></canvas>
+
+            <div class="pbr-fallback" id="pbrFallback" hidden>
+              <div>
+                <p class="section-tag">WebGPU Unavailable</p>
+                <h3>当前浏览器没有可用的 WebGPU</h3>
+                <p>
+                  右侧的教学说明和参数结构仍然可以阅读，但左侧实时材质球需要支持 WebGPU 的浏览器环境。
+                </p>
+              </div>
+            </div>
+
+            <aside class="pbr-control-panel" id="pbrControlPanel" aria-label="PBR 控制面板">
+              <div class="pbr-control-header">
+                <div>
+                  <p class="section-tag">Controls</p>
+                  <h3 id="controlPanelTitle">模型与参数</h3>
+                </div>
+                <button class="secondary-button" id="resetParamsButton" type="button">重置默认参数</button>
+              </div>
+
+              <div class="control-block">
+                <label class="control-label" for="modelSelect">模型选择</label>
+                <select class="control-select" id="modelSelect"></select>
+              </div>
+
+              <div class="control-group-shell">
+                <section class="control-group">
+                  <div class="control-group-header">
+                    <p class="control-group-tag">Scene</p>
+                    <h4>场景参数</h4>
+                  </div>
+                  <div id="sceneControls"></div>
+                </section>
+
+                <section class="control-group">
+                  <div class="control-group-header">
+                    <p class="control-group-tag">Material</p>
+                    <h4>模型参数</h4>
+                  </div>
+                  <div id="materialControls"></div>
+                </section>
+              </div>
+
+            </aside>
+          </div>
+        </section>
+
+        <aside class="pbr-docs-card" aria-labelledby="pbrDocTitle">
+          <div class="pbr-docs-scroll" id="pbrDocsScroll">
+            <div class="pbr-docs-header">
+              <p class="section-tag">Teaching Notes</p>
+              <h2 id="pbrDocTitle">模型原理与公式说明</h2>
+              <p id="pbrDocLead">
+                右侧内容会随着当前模型同步切换，包括核心思想、数学形式、参数解释、优缺点和典型应用场景。
+              </p>
+            </div>
+
+            <div id="pbrDocContent"></div>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <script src="assets/katex/katex.min.js"></script>
+    <script src="assets/katex/contrib/auto-render.min.js"></script>
+    <script src="math.js"></script>
+    <script src="pbr.js"></script>
+  </body>
+</html>

@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ReSTIR Theory Notes</title>
+    <link rel="stylesheet" href="assets/katex/katex.min.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="page-article">
+    <nav class="site-nav" aria-label="站点导航">
+      <div class="site-nav-inner">
+        <a class="site-brand" href="index.html">Light Transport Notes</a>
+        <div class="site-nav-links">
+          <a class="site-nav-link" href="index.html">首页</a>
+          <a class="site-nav-link" href="rendering-equation.html">渲染方程</a>
+          <a class="site-nav-link" href="pbr.html">PBR 模型</a>
+          <a class="site-nav-link" href="restir.html" aria-current="page">ReSTIR 理论</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="article-shell">
+      <header class="article-hero">
+        <p class="eyebrow">ReSTIR Theory Notes</p>
+        <h1>ReSTIR DI / GI / PT 与 GRIS / Conditional RIS</h1>
+        <p class="article-lead">
+          这一页把 ReSTIR 系列方法按“从 RIS 到 Reservoir，再到路径空间与条件空间”的顺序梳理出来。公式记号参考原论文思路做了统一，
+          目的是让网页阅读时更连续，也更适合作为后续演示或扩展页面的基础。
+        </p>
+        <div class="hero-chip-row" aria-label="主题标签">
+          <span class="hero-chip">RIS</span>
+          <span class="hero-chip">Reservoir</span>
+          <span class="hero-chip">Path Reuse</span>
+          <span class="hero-chip">GRIS</span>
+          <span class="hero-chip">Conditional RIS</span>
+        </div>
+        <nav class="hero-anchor-nav" aria-label="章节导航">
+          <a href="#foundations">基础</a>
+          <a href="#restir-di">ReSTIR DI</a>
+          <a href="#restir-gi">ReSTIR GI</a>
+          <a href="#restir-pt">ReSTIR PT</a>
+          <a href="#gris">GRIS</a>
+          <a href="#conditional-ris">Conditional RIS</a>
+          <a href="#references">参考论文</a>
+        </nav>
+      </header>
+
+      <div class="article-layout">
+        <aside class="toc-card">
+          <p class="toc-title">本页目录</p>
+          <div class="toc-links">
+            <a href="#foundations">1. RIS 与 Reservoir 基础</a>
+            <a href="#restir-di">2. ReSTIR DI</a>
+            <a href="#restir-gi">3. ReSTIR GI</a>
+            <a href="#restir-pt">4. ReSTIR PT</a>
+            <a href="#gris">5. GRIS</a>
+            <a href="#conditional-ris">6. Conditional RIS</a>
+            <a href="#references">7. 参考论文</a>
+          </div>
+        </aside>
+
+        <main class="theory-content">
+          <section class="theory-section" id="foundations">
+            <p class="section-tag">Section 01</p>
+            <h2>从积分、RIS 到 Reservoir</h2>
+            <p>
+              ReSTIR 家族的共同目标，是用很少的当前帧样本，尽可能逼近一个高维光传输积分。先把问题写成最抽象的形式：
+            </p>
+
+            <figure class="algorithm-diagram" aria-label="RIS 与 Reservoir 基础流程示意图">
+              <figcaption class="algorithm-diagram-header">
+                <div>
+                  <p class="algorithm-diagram-tag">Visual Intuition</p>
+                  <h3>RIS 到 Reservoir 的压缩流程</h3>
+                </div>
+                <p class="algorithm-diagram-copy">
+                  先生成很多候选，再按权重重采样出一个代表样本；Reservoir 的意义是把这个结果压缩成可复用的状态。
+                </p>
+              </figcaption>
+              <div class="algorithm-flow flow-4">
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">Step 1</p>
+                  <h4>生成 M 个候选</h4>
+                  <p>候选可以来自一个 proposal，也可以来自多个 proposal 技术。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">Step 2</p>
+                  <h4>计算 RIS 权重</h4>
+                  <p>每个候选写成统一的正权重，比较谁更值得被保留。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage is-emphasis">
+                  <p class="algorithm-stage-tag">Step 3</p>
+                  <h4>按权重重采样</h4>
+                  <p>候选中只留下一个代表样本 Y，但保留所有候选的累计信息。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage is-result">
+                  <p class="algorithm-stage-tag">Step 4</p>
+                  <h4>存储 {Y, S, M}</h4>
+                  <p>后续时间复用和空间复用不再搬整批样本，而是搬这个压缩状态。</p>
+                </article>
+              </div>
+              <div class="algorithm-sources" aria-label="基础流程强调点">
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>关键对象: 候选样本集合</span>
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>关键操作: 重采样而不是平均全部样本</span>
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>关键结果: 可复用的 reservoir 状态</span>
+              </div>
+            </figure>
+
+            <div class="formula-grid two-up">
+              <article class="formula-block">
+                <p class="formula-title">目标积分</p>
+                <p class="math-display">\[ I = \int_{\Omega} f(x)\,dx \]</p>
+                <p class="math-note">
+                  这里的 <span class="math-inline">\(x\)</span> 可以是光源样本、路径样本，或条件前缀下的一段路径后缀。
+                </p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">候选样本</p>
+                <p class="math-display">\[ x_i \sim p_i(x), \quad i = 1,\ldots,M \]</p>
+                <p class="math-note">
+                  RIS 允许每个候选来自不同提议分布 <span class="math-inline">\(p_i\)</span>，这也是它优于单一重要性采样的地方。
+                </p>
+              </article>
+            </div>
+
+            <p>
+              Resampled Importance Sampling 的关键，是先定义一个便于选样的目标代理函数
+              <span class="math-inline">\(\hat{p}(x)\)</span>，通常让它与真实贡献
+              <span class="math-inline">\(\lvert f(x)\rvert\)</span> 近似成正比。然后给每个候选赋予权重：
+            </p>
+
+            <div class="formula-grid">
+              <article class="formula-block">
+                <p class="formula-title">RIS 权重</p>
+                <p class="math-display">\[ w_i = \hat{p}(x_i) / p_i(x_i) \]</p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">重采样概率</p>
+                <p class="math-display">\[ P(Z = i \mid x_{1:M}) = \frac{w_i}{\sum_{j=1}^{M} w_j} \]</p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">RIS 估计器</p>
+                <p class="math-display">
+                  \[
+                    \hat{I}_{\mathrm{RIS}} =
+                    \frac{f(x_Z)}{\hat{p}(x_Z)} \cdot \frac{\sum_{j=1}^{M} w_j}{M}
+                  \]
+                </p>
+              </article>
+            </div>
+
+            <div class="step-list">
+              <article class="step-item">
+                <span class="step-index">1</span>
+                <div>
+                  <h3>先对固定候选集合求条件期望</h3>
+                  <p class="math-display">
+                    \[
+                      E[\hat{I}_{\mathrm{RIS}} \mid x_{1:M}] =
+                      \sum_{i=1}^{M}
+                      \frac{w_i}{\sum_j w_j}
+                      \cdot
+                      \frac{f(x_i)}{\hat{p}(x_i)}
+                      \cdot
+                      \frac{\sum_j w_j}{M}
+                    \]
+                  </p>
+                </div>
+              </article>
+              <article class="step-item">
+                <span class="step-index">2</span>
+                <div>
+                  <h3>消掉重采样归一项</h3>
+                  <p class="math-display">
+                    \[
+                      E[\hat{I}_{\mathrm{RIS}} \mid x_{1:M}] =
+                      \frac{1}{M} \sum_{i=1}^{M} \frac{f(x_i)}{p_i(x_i)}
+                    \]
+                  </p>
+                </div>
+              </article>
+              <article class="step-item">
+                <span class="step-index">3</span>
+                <div>
+                  <h3>再对候选本身取期望</h3>
+                  <p class="math-display">
+                    \[
+                      E[\hat{I}_{\mathrm{RIS}}] =
+                      \frac{1}{M} \sum_{i=1}^{M} \int_{\Omega} f(x)\,dx = I
+                    \]
+                  </p>
+                  <p>
+                    所以只要 <span class="math-inline">\(\hat{p}\)</span> 的支持覆盖真实积分的支持，RIS 就是无偏的。
+                  </p>
+                </div>
+              </article>
+            </div>
+
+            <p>
+              Reservoir 的作用不是改变估计器，而是把
+              <span class="math-inline">\(M\)</span> 个候选压缩成“一个被选中样本 + 权重和 + 有效样本数”。
+              如果我们顺序处理候选，记
+              <span class="math-inline">\(S_i = \sum_{j=1}^{i} w_j\)</span>，
+              那么第 <span class="math-inline">\(i\)</span> 个样本替换当前 reservoir 内容的概率就是
+              <span class="math-inline">\(w_i / S_i\)</span>。最终 reservoir 只需存储：
+            </p>
+
+            <div class="formula-grid three-up">
+              <article class="formula-block">
+                <p class="formula-title">选中样本</p>
+                <p class="math-display">\[ Y \]</p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">权重和</p>
+                <p class="math-display">\[ S = \sum_{i=1}^{M} w_i \]</p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">有效候选数</p>
+                <p class="math-display">\[ M \]</p>
+              </article>
+            </div>
+
+            <p class="callout-note">
+              后面所有 ReSTIR 变体，实质上都在回答同一个问题：不同来源的候选，怎样写成“可以被 reservoir 合并的权重”。
+            </p>
+          </section>
+
+          <section class="theory-section" id="restir-di">
+            <p class="section-tag">Section 02</p>
+            <h2>ReSTIR DI: 把 RIS 用在动态直射光上</h2>
+            <p>
+              对一个着色点 <span class="math-inline">\(x\)</span> 和观察方向
+              <span class="math-inline">\(\omega_o\)</span>，直射光贡献可以写成对光源域的积分：
+            </p>
+
+            <figure class="algorithm-diagram" aria-label="ReSTIR DI 直观流程示意图">
+              <figcaption class="algorithm-diagram-header">
+                <div>
+                  <p class="algorithm-diagram-tag">Visual Intuition</p>
+                  <h3>ReSTIR DI 直观流程</h3>
+                </div>
+                <p class="algorithm-diagram-copy">
+                  DI 复用的对象是灯光样本。历史和邻居 reservoir 会被重新解释成“新的候选技术”，再和本地灯光样本一起合并。
+                </p>
+              </figcaption>
+              <div class="algorithm-flow flow-4">
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">Input</p>
+                  <h4>当前像素 q</h4>
+                  <p>当前帧的着色点要估计直射光贡献。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">Local</p>
+                  <h4>采样本地灯光</h4>
+                  <p>从光源分布抽取候选灯光 y_i，保证本地支持不丢失。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage is-emphasis">
+                  <p class="algorithm-stage-tag">Reuse</p>
+                  <h4>统一合并 reservoir</h4>
+                  <p>把本地、前一帧和邻居样本都写成针对 q 的统一权重。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage is-result">
+                  <p class="algorithm-stage-tag">Output</p>
+                  <h4>留下一个代表灯光</h4>
+                  <p>只保留 Y、S、M，并用 c_q(Y)W 输出最终直射光估计。</p>
+                </article>
+              </div>
+              <div class="algorithm-sources" aria-label="ReSTIR DI 复用来源">
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>时间复用: 前一帧 reservoir 直接进入候选池</span>
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>空间复用: 邻居像素 reservoir 参与同一轮合并</span>
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>候选对象: 灯光点而不是路径</span>
+              </div>
+            </figure>
+
+            <div class="formula-grid two-up">
+              <article class="formula-block formula-block-scroll">
+                <p class="formula-title">直射光积分</p>
+                <p class="math-display">
+                  \[
+                    L_o^{\mathrm{dir}}(x,\omega_o) =
+                    \int_A
+                    L_e(y \to x)\,
+                    f_r(x,\omega_{xy},\omega_o)\,
+                    G(x,y)\,
+                    V(x,y)\,
+                    dA(y)
+                  \]
+                </p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">贡献记号</p>
+                <p class="math-display">
+                  \[
+                    c_x(y) =
+                    L_e(y \to x)\,
+                    f_r(x,\omega_{xy},\omega_o)\,
+                    G(x,y)\,
+                    V(x,y)
+                  \]
+                </p>
+              </article>
+            </div>
+
+            <p>
+              这样一来，ReSTIR DI 的本地候选阶段就和基础 RIS 完全同构了。我们从光源分布
+              <span class="math-inline">\(p(y)\)</span> 采样候选光源点
+              <span class="math-inline">\(y_i\)</span>，并定义：
+            </p>
+
+            <div class="formula-grid three-up">
+              <article class="formula-block">
+                <p class="formula-title">局部 RIS 权重</p>
+                <p class="math-display">\[ w_i(x) = \hat{p}_x(y_i) / p(y_i) \]</p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">Reservoir 输出权重</p>
+                <p class="math-display">\[ W = S / (M \cdot \hat{p}_x(Y)) \]</p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">最终估计器</p>
+                <p class="math-display">\[ \hat{L}_o^{\mathrm{dir}} = c_x(Y) \cdot W \]</p>
+              </article>
+            </div>
+
+            <div class="step-list">
+              <article class="step-item">
+                <span class="step-index">1</span>
+                <div>
+                  <h3>当前像素先生成本地光源候选</h3>
+                  <p>
+                    这一步负责保证支持覆盖。哪怕后面完全依赖时空复用，当前像素也必须至少带一个“本帧本地候选”，否则会失去无偏基础。
+                  </p>
+                </div>
+              </article>
+              <article class="step-item">
+                <span class="step-index">2</span>
+                <div>
+                  <h3>旧 reservoir 作为“新的候选技术”参与合并</h3>
+                  <p>
+                    如果相邻像素或前一帧 reservoir 输出了样本
+                    <span class="math-inline">\(Y_r\)</span>，并带有
+                    <span class="math-inline">\(W_r\)</span> 与
+                    <span class="math-inline">\(M_r\)</span>，那么对当前像素
+                    <span class="math-inline">\(q\)</span> 来说，它对应的可合并权重写成：
+                  </p>
+                  <p class="math-display">
+                    \[
+                      w_r(q) = \hat{p}_q(Y_r) \cdot W_r \cdot M_r
+                    \]
+                  </p>
+                </div>
+              </article>
+              <article class="step-item">
+                <span class="step-index">3</span>
+                <div>
+                  <h3>对所有来源统一执行 reservoir 合并</h3>
+                  <p>
+                    无论候选来自本地光源采样、时间复用还是空间复用，最后都退化为“一个候选 + 一个正标量权重”的统一接口。
+                  </p>
+                </div>
+              </article>
+            </div>
+
+            <p class="callout-note">
+              ReSTIR DI 的核心创新，不是换了新的直射光积分，而是把“很多灯光候选”压缩成一个 reservoir，再把 reservoir 视为一种可复用的采样技术。
+            </p>
+          </section>
+
+          <section class="theory-section" id="restir-gi">
+            <p class="section-tag">Section 03</p>
+            <h2>ReSTIR GI: 从灯光样本走向间接路径样本</h2>
+            <p>
+              一旦目标不再是“一个灯光点”，而是“整条间接光路”，积分域就从光源域扩展成路径空间：
+            </p>
+
+            <figure class="algorithm-diagram" aria-label="ReSTIR GI 直观流程示意图">
+              <figcaption class="algorithm-diagram-header">
+                <div>
+                  <p class="algorithm-diagram-tag">Visual Intuition</p>
+                  <h3>ReSTIR GI 直观流程</h3>
+                </div>
+                <p class="algorithm-diagram-copy">
+                  GI 复用的对象已经变成路径。旧路径不能直接照搬到当前像素，必须先做 shift mapping，再用 Jacobian 修正测度变化。
+                </p>
+              </figcaption>
+              <div class="algorithm-flow flow-5">
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">Local</p>
+                  <h4>本地追踪新路径</h4>
+                  <p>当前像素先生成自己的间接路径候选，保证支持覆盖。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">Reuse</p>
+                  <h4>取历史 / 邻居路径</h4>
+                  <p>把其他像素或前一帧保存的路径拿来作为潜在候选。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage is-emphasis">
+                  <p class="algorithm-stage-tag">Shift</p>
+                  <h4>路径变形到当前像素</h4>
+                  <p>通过 shift mapping 把源路径变成当前像素对应的路径 Y_i。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">Measure</p>
+                  <h4>乘 Jacobian 修正</h4>
+                  <p>修正路径测度变化，保证复用后的权重仍然数学一致。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage is-result">
+                  <p class="algorithm-stage-tag">Output</p>
+                  <h4>Reservoir 选代表路径</h4>
+                  <p>把所有合法路径合并重采样，输出间接光估计。</p>
+                </article>
+              </div>
+              <div class="algorithm-sources" aria-label="ReSTIR GI 关键点">
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>候选对象: 不再是灯，而是间接路径</span>
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>关键难点: 路径需要合法搬运到当前像素</span>
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>关键工具: shift mapping + Jacobian</span>
+              </div>
+            </figure>
+
+            <div class="formula-grid two-up">
+              <article class="formula-block">
+                <p class="formula-title">路径空间积分</p>
+                <p class="math-display">\[ I_{\mathrm{GI}} = \int_{\Pi} f(X)\, d\mu(X) \]</p>
+                <p class="math-note">
+                  <span class="math-inline">\(X\)</span> 是一条完整或部分路径，
+                  <span class="math-inline">\(f(X)\)</span> 包含 throughput、几何项、可见性和发光项。
+                </p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">本地候选</p>
+                <p class="math-display">
+                  \[
+                    X_i \sim p_i(X), \quad w_i = \hat{p}(X_i) / p_i(X_i)
+                  \]
+                </p>
+              </article>
+            </div>
+
+            <p>
+              但空间/时间复用下，邻居像素上的路径并不直接属于当前像素的路径空间，需要先做
+              <strong>shift mapping</strong>。令
+              <span class="math-inline">\(T_i\)</span> 把源路径
+              <span class="math-inline">\(X_i\)</span> 变换为当前像素对应的路径
+              <span class="math-inline">\(Y_i = T_i(X_i)\)</span>，
+              则权重中要补上测度变化的 Jacobian：
+            </p>
+
+            <div class="formula-grid">
+              <article class="formula-block">
+                <p class="formula-title">带 shift 的路径权重</p>
+                <p class="math-display">
+                  \[
+                    w_i = \hat{p}(Y_i) \cdot W_i \cdot \lvert J_i \rvert
+                  \]
+                </p>
+                <p class="math-note">
+                  这里的 <span class="math-inline">\(W_i\)</span> 可以是本地路径的
+                  <span class="math-inline">\(1 / p_i(X_i)\)</span>，
+                  也可以是来自旧 reservoir 的贡献权重。
+                </p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">代表性的局部重连 Jacobian</p>
+                <p class="math-display">
+                  \[
+                    \lvert J \rvert =
+                    \frac{\lVert x_k - x_{k-1} \rVert^2}{\lVert y_k - y_{k-1} \rVert^2}
+                    \cdot
+                    \frac{\lvert n_y \cdot \omega_y \rvert}{\lvert n_x \cdot \omega_x \rvert}
+                  \]
+                </p>
+              </article>
+            </div>
+
+            <div class="step-list">
+              <article class="step-item">
+                <span class="step-index">1</span>
+                <div>
+                  <h3>本地路径追踪器负责产生新路径</h3>
+                  <p>
+                    这些路径通常来自当前像素的 BSDF 采样、下一事件估计或短路径拼接，它们保证当前像素始终拥有自己的支持。
+                  </p>
+                </div>
+              </article>
+              <article class="step-item">
+                <span class="step-index">2</span>
+                <div>
+                  <h3>邻居或历史路径先变形，再参与合并</h3>
+                  <p>
+                    间接光复用的难点不在 reservoir 本身，而在于“如何把别处的路径合法地搬到当前像素”。shift mapping 和 Jacobian 正是解决这个问题的理论工具。
+                  </p>
+                </div>
+              </article>
+              <article class="step-item">
+                <span class="step-index">3</span>
+                <div>
+                  <h3>最终估计器仍旧长成 RIS 形式</h3>
+                  <p class="math-display">
+                    \[
+                      \hat{I}_{\mathrm{GI}} =
+                      \frac{f(Y)}{\hat{p}(Y)} \cdot \sum_j w_j
+                    \]
+                  </p>
+                  <p>
+                    也就是说，ReSTIR GI 在算法层面看似复杂，但最终仍然是在做“候选重采样 + reservoir 压缩”。
+                  </p>
+                </div>
+              </article>
+            </div>
+
+            <p class="callout-note">
+              与 DI 相比，GI 的本质变化是：候选不再是“灯”，而是“路径”；而路径要想复用，必须先解决跨像素测度不一致的问题。
+            </p>
+          </section>
+
+          <section class="theory-section" id="restir-pt">
+            <p class="section-tag">Section 04</p>
+            <h2>ReSTIR PT: 把整个路径空间统一放进重采样框架</h2>
+            <p>
+              ReSTIR PT 可以看作是“把 DI 的 reservoir 思想 + GI 的路径 shift + GRIS 的无偏理论”合到一起后的完整路径空间版本。
+              它不再只针对直接光或单类间接路径，而是直接在整条路径上做统一重采样。
+            </p>
+
+            <figure class="algorithm-diagram" aria-label="ReSTIR PT 直观流程示意图">
+              <figcaption class="algorithm-diagram-header">
+                <div>
+                  <p class="algorithm-diagram-tag">Visual Intuition</p>
+                  <h3>ReSTIR PT 直观流程</h3>
+                </div>
+                <p class="algorithm-diagram-copy">
+                  PT 的视角是“把所有路径生成技术都接到一个统一接口上”，再用一套重采样框架同时处理直射、间接和复用路径。
+                </p>
+              </figcaption>
+              <div class="algorithm-flow flow-5">
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">Sources</p>
+                  <h4>多种路径来源</h4>
+                  <p>本地路径、历史 reservoir 和邻居 shift 后路径同时存在。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">Pool</p>
+                  <h4>进入统一候选池</h4>
+                  <p>所有来源都退化成“候选路径 + 可比较的贡献权重”。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage is-emphasis">
+                  <p class="algorithm-stage-tag">Weight</p>
+                  <h4>写成统一重采样权重</h4>
+                  <p>RMIS、UCW 和 Jacobian 共同决定每条路径的重采样权重。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">Select</p>
+                  <h4>Reservoir 压缩选样</h4>
+                  <p>整批候选最终压缩成一个代表路径及其归一信息。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage is-result">
+                  <p class="algorithm-stage-tag">Output</p>
+                  <h4>统一输出完整路径估计</h4>
+                  <p>同一套框架同时覆盖直射、间接和更复杂的路径组合。</p>
+                </article>
+              </div>
+              <div class="algorithm-sources" aria-label="ReSTIR PT 关键点">
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>候选对象: 完整路径而不是单个灯光点</span>
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>统一接口: 多技术候选都能并入同一 reservoir</span>
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>最终目标: 整条路径空间的统一重采样</span>
+              </div>
+            </figure>
+
+            <div class="formula-grid two-up">
+              <article class="formula-block">
+                <p class="formula-title">完整路径估计目标</p>
+                <p class="math-display">\[ I_{\mathrm{PT}} = \int_{\Pi} f(X)\, d\mu(X) \]</p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">统一的重采样权重</p>
+                <p class="math-display">
+                  \[
+                    w_i =
+                    m_i(Y_i) \cdot \hat{p}(Y_i) \cdot W_i \cdot \lvert J_i \rvert
+                  \]
+                </p>
+              </article>
+            </div>
+
+            <p>
+              这里第一次出现了
+              <span class="math-inline">\(m_i\)</span>，它是 later GRIS 语境下的
+              <strong>resampling MIS weight</strong>。直观理解是：
+              当候选来自多种技术时，除了候选本身的贡献权重
+              <span class="math-inline">\(W_i\)</span> 之外，还需要一个“技术间分账规则”，避免不同来源在同一位置发生重复计数。
+            </p>
+
+            <div class="formula-grid three-up">
+              <article class="formula-block">
+                <p class="formula-title">候选来源一</p>
+                <p class="formula-text">当前像素本地路径</p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">候选来源二</p>
+                <p class="formula-text">前一帧 / 历史 reservoir</p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">候选来源三</p>
+                <p class="formula-text">邻居像素 shift 后的路径</p>
+              </article>
+            </div>
+
+            <div class="step-list">
+              <article class="step-item">
+                <span class="step-index">1</span>
+                <div>
+                  <h3>每个来源先提供“自己为什么无偏”的贡献权重</h3>
+                  <p>
+                    对本地采样技术，常见写法就是
+                    <span class="math-inline">\(W = 1 / p(X)\)</span>；对旧 reservoir，则是“旧的归一因子”继续沿用。
+                  </p>
+                </div>
+              </article>
+              <article class="step-item">
+                <span class="step-index">2</span>
+                <div>
+                  <h3>如果候选经过路径变形，要再乘 Jacobian</h3>
+                  <p>
+                    这一步把“在源像素正确的路径密度”转换成“在当前像素对应的路径测度”，也是 GI / PT 能成立的关键。
+                  </p>
+                </div>
+              </article>
+              <article class="step-item">
+                <span class="step-index">3</span>
+                <div>
+                  <h3>最后用同一条 GRIS 估计器收束</h3>
+                  <p class="math-display">
+                    \[
+                      \hat{I}_{\mathrm{PT}} =
+                      \frac{f(Y)}{\hat{p}(Y)} \cdot \sum_j w_j
+                    \]
+                  </p>
+                  <p>
+                    这也是为什么 ReSTIR PT 不只是“更强的 GI”，而是一套能够统一多种路径生成技术、时空复用和路径 shift 的总框架。
+                  </p>
+                </div>
+              </article>
+            </div>
+
+            <p class="callout-note">
+              从视角上看，ReSTIR DI 是“灯光域重采样”，ReSTIR GI 是“间接路径重采样”，ReSTIR PT 则是“整条路径空间重采样”。
+            </p>
+          </section>
+
+          <section class="theory-section" id="gris">
+            <p class="section-tag">Section 05</p>
+            <h2>GRIS: 给 ReSTIR PT 奠定严格无偏基础</h2>
+            <p>
+              GRIS 的核心贡献，是把 ReSTIR 从“看起来像 RIS 的 reservoir 技巧”正式提升为一个更广义的无偏重采样理论。
+              它把“显式 PDF”推广成了“无偏贡献权重”。
+            </p>
+
+            <figure class="algorithm-diagram" aria-label="GRIS 直观流程示意图">
+              <figcaption class="algorithm-diagram-header">
+                <div>
+                  <p class="algorithm-diagram-tag">Visual Intuition</p>
+                  <h3>GRIS 直观流程</h3>
+                </div>
+                <p class="algorithm-diagram-copy">
+                  GRIS 的核心思想是：你不必总先写出一个漂亮的显式 PDF，只要每种技术能给出无偏贡献权重，就能进入广义重采样框架。
+                </p>
+              </figcaption>
+              <div class="algorithm-flow flow-5">
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">Technique</p>
+                  <h4>任意采样技术</h4>
+                  <p>候选可以来自本地采样、shift 后路径或更复杂的生成技术。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">UCW</p>
+                  <h4>给出无偏贡献权重 W_i</h4>
+                  <p>只要每项技术本身无偏，就不必强行回到统一 proposal PDF。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage is-emphasis">
+                  <p class="algorithm-stage-tag">RMIS</p>
+                  <h4>加入 m_i(y) 与 J_i</h4>
+                  <p>在共享支持上分账，并在有 shift 时修正路径测度变化。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">Weight</p>
+                  <h4>组成广义权重 w_i</h4>
+                  <p>所有技术最终都能写进同一条广义重采样权重公式。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage is-result">
+                  <p class="algorithm-stage-tag">Output</p>
+                  <h4>保持无偏重采样估计</h4>
+                  <p>这给 ReSTIR PT 提供了严格的统一理论基础。</p>
+                </article>
+              </div>
+              <div class="algorithm-sources" aria-label="GRIS 关键点">
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>显式 PDF: 可以有，但不再是唯一入口</span>
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>RMIS: 负责多技术之间的分账</span>
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>UCW: 负责保证各技术自身无偏</span>
+              </div>
+            </figure>
+
+            <div class="formula-grid two-up">
+              <article class="formula-block">
+                <p class="formula-title">无偏贡献权重定义</p>
+                <p class="math-display">\[ E[f(X_i) W_i] = I \]</p>
+                <p class="math-note">
+                  只要一项技术能够给出这样一个
+                  <span class="math-inline">\(W_i\)</span>，GRIS 就不再要求你显式写出统一的 proposal PDF。
+                </p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">shift 后的候选</p>
+                <p class="math-display">
+                  \[
+                    Y_i = T_i(X_i), \quad
+                    J_i = \left\lvert \partial T_i / \partial X_i \right\rvert
+                  \]
+                </p>
+              </article>
+            </div>
+
+            <p>
+              接着，GRIS 要求为每种技术定义一个 resampling MIS 权重
+              <span class="math-inline">\(m_i(y)\)</span>，它在每个
+              <span class="math-inline">\(y\)</span> 上满足：
+            </p>
+
+            <div class="formula-grid three-up">
+              <article class="formula-block">
+                <p class="formula-title">RMIS 约束</p>
+                <p class="math-display">\[ \sum_i m_i(y) = 1 \]</p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">GRIS 权重</p>
+                <p class="math-display">
+                  \[
+                    w_i =
+                    m_i(Y_i) \cdot \hat{p}(Y_i) \cdot W_i \cdot J_i
+                  \]
+                </p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">GRIS 估计器</p>
+                <p class="math-display">
+                  \[
+                    \hat{I}_{\mathrm{GRIS}} =
+                    \frac{f(Y)}{\hat{p}(Y)} \cdot \sum_j w_j
+                  \]
+                </p>
+              </article>
+            </div>
+
+            <div class="step-list">
+              <article class="step-item">
+                <span class="step-index">1</span>
+                <div>
+                  <h3>先对最终被选中的样本条件化</h3>
+                  <p class="math-display">
+                    \[
+                      E[\hat{I}_{\mathrm{GRIS}} \mid Y_{1:M}]
+                      =
+                      \sum_i
+                      \frac{w_i}{\sum_j w_j}
+                      \cdot
+                      \frac{f(Y_i)}{\hat{p}(Y_i)}
+                      \cdot
+                      \sum_j w_j
+                    \]
+                  </p>
+                </div>
+              </article>
+              <article class="step-item">
+                <span class="step-index">2</span>
+                <div>
+                  <h3>消掉重采样归一项</h3>
+                  <p class="math-display">
+                    \[
+                      E[\hat{I}_{\mathrm{GRIS}} \mid Y_{1:M}]
+                      =
+                      \sum_i f(Y_i)\, m_i(Y_i)\, W_i\, J_i
+                    \]
+                  </p>
+                </div>
+              </article>
+              <article class="step-item">
+                <span class="step-index">3</span>
+                <div>
+                  <h3>利用 UCW + RMIS 的分账约束取总体期望</h3>
+                  <p>
+                    因为 <span class="math-inline">\(W_i\)</span> 已经保证各技术各自无偏，而
+                    <span class="math-inline">\(m_i\)</span> 只负责在共享支持上做一组求和为 1 的分配，
+                    所以 GRIS 仍能回到原积分 <span class="math-inline">\(I\)</span>。
+                  </p>
+                </div>
+              </article>
+            </div>
+
+            <p>
+              这一步理论化的意义非常大：它告诉我们，ReSTIR 不必局限于“显式写得清 proposal PDF 的 RIS 情形”，而可以接纳更多复杂采样技术，
+              只要这些技术能给出可验证的无偏贡献权重。
+            </p>
+          </section>
+
+          <section class="theory-section" id="conditional-ris">
+            <p class="section-tag">Section 06</p>
+            <h2>Conditional RIS: 先固定前缀，再重采样后缀</h2>
+            <p>
+              Conditional RIS 的出发点是：很多路径空间问题里，直接写出整个联合样本的贡献权重很困难，
+              但如果先固定一个条件变量，比如可见点、眼路径前缀、前几次反射，那么“剩下的后缀”往往更容易处理。
+            </p>
+
+            <figure class="algorithm-diagram" aria-label="Conditional RIS 直观流程示意图">
+              <figcaption class="algorithm-diagram-header">
+                <div>
+                  <p class="algorithm-diagram-tag">Visual Intuition</p>
+                  <h3>Conditional RIS 直观流程</h3>
+                </div>
+                <p class="algorithm-diagram-copy">
+                  Conditional RIS 的思路是“先把难问题切开”。当前缀已经固定时，我们只在这个条件下对后缀做重采样，最后再把所有前缀平均起来。
+                </p>
+              </figcaption>
+              <div class="algorithm-flow flow-5">
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">Condition</p>
+                  <h4>先固定前缀 z</h4>
+                  <p>z 可以是可见点、眼路径前缀或已经生成好的部分路径。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">Suffix</p>
+                  <h4>只看后缀候选 U_i | z</h4>
+                  <p>难的联合路径问题被缩成“给定 z 后如何挑后缀”。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage is-emphasis">
+                  <p class="algorithm-stage-tag">RIS</p>
+                  <h4>在条件空间内重采样</h4>
+                  <p>只比较同一个 z 下的候选后缀，计算条件权重 w_i(z)。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage">
+                  <p class="algorithm-stage-tag">Estimate</p>
+                  <h4>得到条件估计 I(z)</h4>
+                  <p>每个固定前缀都会输出一个条件无偏的局部估计。</p>
+                </article>
+                <div class="algorithm-arrow" aria-hidden="true"></div>
+                <article class="algorithm-stage is-result">
+                  <p class="algorithm-stage-tag">Average</p>
+                  <h4>再对 z 取总体期望</h4>
+                  <p>把所有条件估计组合起来，恢复原始联合积分 I。</p>
+                </article>
+              </div>
+              <div class="algorithm-sources" aria-label="Conditional RIS 关键点">
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>固定对象: 前缀、可见点或部分路径</span>
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>重采样对象: 在该条件下的路径后缀</span>
+                <span class="algorithm-source"><span class="algorithm-source-dot"></span>最终收益: 把联合问题拆成许多局部条件问题</span>
+              </div>
+            </figure>
+
+            <div class="formula-grid two-up">
+              <article class="formula-block">
+                <p class="formula-title">联合积分分解</p>
+                <p class="math-display">
+                  \[
+                    I =
+                    \int f(z,u)\, d\mu(z,u)
+                    =
+                    E_{Z \sim p_Z}\!\left[
+                      \int \frac{f(Z,u)}{p_Z(Z)}\, d\mu(u)
+                    \right]
+                  \]
+                </p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">条件目标</p>
+                <p class="math-display">
+                  \[
+                    I(Z = z) =
+                    \int \frac{f(z,u)}{p_Z(z)}\, d\mu(u)
+                  \]
+                </p>
+              </article>
+            </div>
+
+            <p>
+              于是对每个固定的 <span class="math-inline">\(z\)</span>，我们只对后缀变量
+              <span class="math-inline">\(u\)</span> 做 RIS。设条件候选
+              <span class="math-inline">\(U_i \mid Z = z\)</span> 带有条件无偏贡献权重
+              <span class="math-inline">\(W_i(u \mid z)\)</span>，满足：
+            </p>
+
+            <div class="formula-grid">
+              <article class="formula-block">
+                <p class="formula-title">条件 UCW</p>
+                <p class="math-display">
+                  \[
+                    E[f(z,U_i)\, W_i(U_i \mid z) \mid Z = z] = I(Z = z)
+                  \]
+                </p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">Conditional RIS 权重</p>
+                <p class="math-display">
+                  \[
+                    w_i(z) =
+                    m_i(U_i \mid z) \cdot \hat{p}(U_i \mid z) \cdot W_i(U_i \mid z)
+                  \]
+                </p>
+              </article>
+              <article class="formula-block">
+                <p class="formula-title">条件估计器</p>
+                <p class="math-display">
+                  \[
+                    \hat{I}_{\mathrm{CRIS}}(z) =
+                    \frac{f(z,U)}{\hat{p}(U \mid z)} \cdot \sum_j w_j(z)
+                  \]
+                </p>
+              </article>
+            </div>
+
+            <div class="step-list">
+              <article class="step-item">
+                <span class="step-index">1</span>
+                <div>
+                  <h3>先对固定条件变量求条件期望</h3>
+                  <p>
+                    对于每个给定的 <span class="math-inline">\(z\)</span>，
+                    Conditional RIS 其实就是普通 RIS，只不过目标变成了“后缀条件积分”。
+                  </p>
+                </div>
+              </article>
+              <article class="step-item">
+                <span class="step-index">2</span>
+                <div>
+                  <h3>条件无偏保证局部正确</h3>
+                  <p class="math-display">\[ E[\hat{I}_{\mathrm{CRIS}}(Z) \mid Z = z] = I(Z = z) \]</p>
+                </div>
+              </article>
+              <article class="step-item">
+                <span class="step-index">3</span>
+                <div>
+                  <h3>再对条件变量取总体期望</h3>
+                  <p class="math-display">\[ E[\hat{I}_{\mathrm{CRIS}}(Z)] = E_Z[I(Z)] = I \]</p>
+                  <p>
+                    因此，Conditional RIS 等价于“把一个难的联合重采样问题，拆成许多个较容易的条件重采样问题”。
+                  </p>
+                </div>
+              </article>
+            </div>
+
+            <p>
+              对 ReSTIR PT 而言，这个视角很重要。很多时候我们已经固定了相机路径前缀或可见点，
+              那么真正需要被重采样的是“从这个前缀继续长出来的光路后缀”。Conditional RIS 正是为这种 final-gather /
+              prefix-conditioned reuse 提供理论支撑的。
+            </p>
+
+            <div class="compare-grid">
+              <article class="compare-card">
+                <p class="label">DI</p>
+                <h3>复用对象</h3>
+                <p>灯光样本，域低，权重最直接。</p>
+              </article>
+              <article class="compare-card">
+                <p class="label">GI</p>
+                <h3>复用对象</h3>
+                <p>间接路径，需要 shift 和 Jacobian。</p>
+              </article>
+              <article class="compare-card">
+                <p class="label">PT</p>
+                <h3>复用对象</h3>
+                <p>整条路径，需要 GRIS 统一多技术贡献权重。</p>
+              </article>
+              <article class="compare-card">
+                <p class="label">CRIS</p>
+                <h3>复用对象</h3>
+                <p>固定前缀后的路径后缀，重点在条件化分解。</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="theory-section" id="references">
+            <p class="section-tag">Section 07</p>
+            <h2>参考论文与官方页面</h2>
+            <p>
+              下面这些链接对应本页内容的主要来源，建议后续继续扩展网页时优先沿着这些论文和官方项目页做符号对齐。
+            </p>
+            <ul class="reference-list">
+              <li>
+                <a href="https://research.nvidia.com/publication/2020-07_spatiotemporal-reservoir-resampling-real-time-ray-tracing-dynamic-direct">
+                  Spatiotemporal Reservoir Resampling for Real-Time Ray Tracing with Dynamic Direct Lighting
+                </a>
+              </li>
+              <li>
+                <a href="https://d1qx31qr3h6wln.cloudfront.net/publications/Paper157.pdf">
+                  ReSTIR GI: Path Resampling for Real-Time Path Tracing
+                </a>
+              </li>
+              <li>
+                <a href="https://research.nvidia.com/labs/rtr/publication/bitterli2022spatiotemporal/">
+                  Generalized Resampled Importance Sampling: Foundations of ReSTIR
+                </a>
+              </li>
+              <li>
+                <a href="https://graphics.cs.utah.edu/research/projects/gris/">
+                  GRIS Project Page / SIGGRAPH 2022
+                </a>
+              </li>
+              <li>
+                <a href="https://research.nvidia.com/labs/rtr/publication/kettunen2023conditional/">
+                  Conditional Resampled Importance Sampling: A General View of Resampled Path-Based Light Transport Algorithms
+                </a>
+              </li>
+            </ul>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script src="assets/katex/katex.min.js"></script>
+    <script src="assets/katex/contrib/auto-render.min.js"></script>
+    <script src="math.js"></script>
+  </body>
+</html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rendering Equation Deck</title>
+    <link rel="stylesheet" href="assets/katex/katex.min.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="page-deck">
+    <nav class="site-nav" aria-label="站点导航">
+      <div class="site-nav-inner">
+        <a class="site-brand" href="index.html">Light Transport Notes</a>
+        <div class="site-nav-links">
+          <a class="site-nav-link" href="index.html">首页</a>
+          <a class="site-nav-link" href="rendering-equation.html" aria-current="page">渲染方程</a>
+          <a class="site-nav-link" href="pbr.html">PBR 模型</a>
+          <a class="site-nav-link" href="restir.html">ReSTIR 理论</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="deck-shell">
+      <div class="ambient ambient-left"></div>
+      <div class="ambient ambient-right"></div>
+
+      <header class="deck-header">
+        <div>
+          <p class="eyebrow">Realtime Lecture Deck</p>
+          <h1>渲染方程交互讲解</h1>
+        </div>
+        <div class="deck-meta">
+          <span id="slideCounter">01 / 03</span>
+          <p>内容面板优先滚动；方向键、按钮或 Shift + 滚轮可切换幻灯片</p>
+        </div>
+      </header>
+
+      <main class="deck" aria-live="polite">
+        <section class="slide is-active" data-slide="0" aria-label="第一页 渲染方程">
+          <div class="slide-panel hero-panel">
+            <div class="panel-copy">
+              <p class="section-tag">Slide 01</p>
+              <h2>Rendering Equation</h2>
+              <p class="lead">
+                这一页把渲染方程拆成可点击的知识热点。点击公式中的任意一项，会弹出它在物理意义和渲染实现中的作用。
+              </p>
+            </div>
+
+            <div class="equation-card">
+              <p class="equation-tip">悬浮可预览说明，点击可查看完整解释</p>
+              <div class="equation" role="group" aria-label="可交互的渲染方程">
+                <button class="term-button term-primary" data-term="Lo" type="button">
+                  \(L_o(x,\omega_o)\)
+                </button>
+                <span class="equation-operator">=</span>
+                <button class="term-button" data-term="Le" type="button">
+                  \(L_e(x,\omega_o)\)
+                </button>
+                <span class="equation-operator">+</span>
+                <button class="term-button term-integral" data-term="Integral" type="button">
+                  \(\int_{\Omega}\)
+                </button>
+                <button class="term-button" data-term="fr" type="button">
+                  \(f_r(x,\omega_i,\omega_o)\)
+                </button>
+                <button class="term-button" data-term="Li" type="button">
+                  \(L_i(x,\omega_i)\)
+                </button>
+                <button class="term-button" data-term="Cosine" type="button">
+                  \((n \cdot \omega_i)\)
+                </button>
+                <button class="term-button" data-term="Measure" type="button">
+                  \(d\omega_i\)
+                </button>
+              </div>
+
+              <div class="equation-footnote">
+                <p>核心含义：某点朝观察方向射出的光 = 自发光 + 来自所有入射方向的反射贡献总和。</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="slide-panel insight-panel">
+            <div class="insight-card">
+              <p class="label">Three Ideas</p>
+              <h3>为什么这条公式重要</h3>
+              <ul>
+                <li>它统一描述了自发光、材质响应和几何入射关系。</li>
+                <li>它是路径追踪、全局光照和 PBR 的共同理论基础。</li>
+                <li>它解释了“看到的颜色”本质上来自能量传输与表面散射。</li>
+              </ul>
+            </div>
+            <div class="insight-grid">
+              <article>
+                <p class="label">Input</p>
+                <h3>入射光</h3>
+                <p>环境、灯光和间接反弹光从各个方向抵达表面点。</p>
+              </article>
+              <article>
+                <p class="label">Material</p>
+                <h3>材质响应</h3>
+                <p>BRDF 决定不同方向来的光如何被重新分配到观察方向。</p>
+              </article>
+              <article>
+                <p class="label">Output</p>
+                <h3>出射光</h3>
+                <p>最终沿着摄像机方向射出的能量决定了像素亮度与颜色。</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-slide="1" aria-label="第二页 光传输拆解">
+          <div class="slide-panel wide-panel">
+            <p class="section-tag">Slide 02</p>
+            <h2>光如何一步步走到相机</h2>
+            <div class="flow-diagram">
+              <article class="flow-card">
+                <span>01</span>
+                <h3>Light Sources</h3>
+                <p>灯光或环境发出辐射能量，形成场景中的原始光通量。</p>
+              </article>
+              <article class="flow-card">
+                <span>02</span>
+                <h3>Surface Hit</h3>
+                <p>光线抵达表面点 x，不同入射方向贡献不同的能量。</p>
+              </article>
+              <article class="flow-card">
+                <span>03</span>
+                <h3>BRDF Weighting</h3>
+                <p>材质函数对每一束入射光进行加权，决定反射分布。</p>
+              </article>
+              <article class="flow-card">
+                <span>04</span>
+                <h3>Camera View</h3>
+                <p>沿观察方向汇总后的出射辐亮度被相机接收并写入像素。</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-slide="2" aria-label="第三页 实现视角">
+          <div class="slide-panel summary-panel">
+            <p class="section-tag">Slide 03</p>
+            <h2>从公式到实现</h2>
+            <div class="summary-grid">
+              <article>
+                <p class="label">Approximation</p>
+                <h3>积分如何计算</h3>
+                <p>实际渲染通常用采样来近似积分，因此路径追踪会不断随机取样入射方向。</p>
+              </article>
+              <article>
+                <p class="label">Engineering</p>
+                <h3>实时渲染如何落地</h3>
+                <p>实时管线常把公式拆成直接光、环境光、IBL 和阴影等可计算模块。</p>
+              </article>
+              <article>
+                <p class="label">Learning</p>
+                <h3>继续扩展的方向</h3>
+                <p>后续可以继续加入菲涅耳项、微表面模型、路径可视化和逐步推导动画。</p>
+              </article>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="deck-controls" aria-label="幻灯片控制">
+        <button class="nav-button" id="prevButton" type="button" aria-label="上一页">
+          &#8592;
+        </button>
+        <div class="pagination" id="pagination" aria-label="页码"></div>
+        <button class="nav-button" id="nextButton" type="button" aria-label="下一页">
+          &#8594;
+        </button>
+      </footer>
+    </div>
+
+    <aside class="hover-card" id="termHoverCard" aria-hidden="true">
+      <p class="hover-card-eyebrow" id="hoverCardLabel">Term Preview</p>
+      <h3 class="hover-card-title" id="hoverCardTitle"></h3>
+      <p class="hover-card-formula" id="hoverCardFormula"></p>
+      <p class="hover-card-copy" id="hoverCardDescription"></p>
+    </aside>
+
+    <div class="modal" id="termModal" aria-hidden="true">
+      <div class="modal-backdrop" data-close-modal="true"></div>
+      <section
+        class="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modalTitle"
+        aria-describedby="modalDescription"
+      >
+        <button class="modal-close" id="closeModalButton" type="button" aria-label="关闭解释">
+          &times;
+        </button>
+        <p class="modal-eyebrow" id="modalLabel">Term Detail</p>
+        <h2 id="modalTitle"></h2>
+        <p class="modal-formula" id="modalFormula"></p>
+        <p class="modal-description" id="modalDescription"></p>
+        <p class="modal-detail" id="modalDetail"></p>
+      </section>
+    </div>
+
+    <script src="assets/katex/katex.min.js"></script>
+    <script src="assets/katex/contrib/auto-render.min.js"></script>
+    <script src="math.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
