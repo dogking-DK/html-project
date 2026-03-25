@@ -1276,21 +1276,13 @@ body.page-landing {
 }
 
 body.page-pbr {
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .pbr-shell {
-  width: min(1440px, calc(100vw - 28px));
+  width: min(1560px, calc(100vw - 8px));
   margin: 0 auto;
-  padding: calc(var(--nav-height) + 28px) 0 48px;
-}
-
-.pbr-page-header {
-  padding: 34px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(246, 243, 237, 0.95));
-  box-shadow: var(--shadow);
+  padding: calc(var(--nav-height) + 18px) 0 18px;
 }
 
 .pbr-page-header h1,
@@ -1318,10 +1310,10 @@ body.page-pbr {
 
 .pbr-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(380px, 0.8fr);
-  gap: 20px;
-  align-items: start;
-  margin-top: 20px;
+  grid-template-columns: minmax(0, 1.06fr) minmax(460px, 0.98fr);
+  gap: 16px;
+  align-items: stretch;
+  min-height: calc(100vh - var(--nav-height) - 36px);
 }
 
 .pbr-stage-card,
@@ -1332,10 +1324,13 @@ body.page-pbr {
 }
 
 .pbr-stage-card {
-  position: sticky;
-  top: calc(var(--nav-height) + 18px);
+  position: relative;
   padding: 22px;
+  height: calc(100vh - var(--nav-height) - 36px);
+  overflow: hidden;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(247, 243, 237, 0.96));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .pbr-stage-header {
@@ -1391,6 +1386,12 @@ body.page-pbr {
   color: var(--success);
 }
 
+.pbr-backend-badge.is-warning {
+  border-color: rgba(176, 129, 63, 0.28);
+  background: rgba(251, 244, 228, 0.96);
+  color: #8b6226;
+}
+
 .pbr-stage-toolbar {
   position: absolute;
   top: 18px;
@@ -1400,8 +1401,8 @@ body.page-pbr {
 
 .pbr-canvas-shell {
   position: relative;
-  height: min(760px, calc(100vh - var(--nav-height) - 180px));
-  min-height: 540px;
+  height: 100%;
+  min-height: 0;
   border-radius: var(--radius-xl);
   overflow: hidden;
   isolation: isolate;
@@ -1641,6 +1642,42 @@ body.page-pbr {
   align-items: center;
 }
 
+.environment-toolbox {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(207, 198, 183, 0.9);
+}
+
+.environment-toolbox-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.environment-load-button {
+  justify-content: center;
+}
+
+.control-inline-note {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.68;
+  font-size: 0.92rem;
+}
+
+.control-row-value.is-ready {
+  background: rgba(239, 246, 241, 0.92);
+  color: var(--success);
+}
+
+.control-row-value.is-warning {
+  background: rgba(251, 244, 228, 0.96);
+  color: #8b6226;
+}
+
 .control-color-input {
   min-height: 40px;
   border: 0;
@@ -1650,17 +1687,22 @@ body.page-pbr {
 }
 
 .pbr-docs-card {
-  position: sticky;
-  top: calc(var(--nav-height) + 18px);
-  max-height: calc(100vh - var(--nav-height) - 36px);
+  position: relative;
+  top: auto;
+  height: calc(100vh - var(--nav-height) - 36px);
+  max-height: none;
   overflow: hidden;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(248, 245, 240, 0.96));
+  display: grid;
+  min-height: 0;
 }
 
 .pbr-docs-scroll {
-  max-height: inherit;
+  height: 100%;
+  min-height: 0;
   overflow: auto;
   padding: 24px;
+  overscroll-behavior: contain;
 }
 
 .pbr-docs-header {
@@ -1742,7 +1784,7 @@ body.page-pbr {
 }
 
 .pbr-formula-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .pbr-formula-card,
@@ -1752,14 +1794,36 @@ body.page-pbr {
 }
 
 .pbr-term-list {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
+}
+
+.pbr-formula-card {
+  display: grid;
+  grid-template-columns: minmax(132px, 168px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.pbr-formula-card-side {
+  min-width: 0;
+}
+
+.pbr-formula-card-main {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
 }
 
 .formula-term-item {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(92px, 132px) minmax(0, 1fr);
   gap: 14px;
   padding: 16px;
+  align-items: start;
+}
+
+.pbr-docs-card [data-param-key] {
+  cursor: pointer;
 }
 
 .formula-term-symbol {
@@ -1824,6 +1888,14 @@ body.page-pbr {
   box-shadow: 0 0 0 1px rgba(40, 70, 84, 0.08);
 }
 
+.control-row.is-jump-target {
+  border-color: var(--accent-strong);
+  background: rgba(230, 238, 242, 0.98);
+  box-shadow:
+    0 0 0 1px rgba(40, 70, 84, 0.16),
+    0 10px 24px rgba(40, 70, 84, 0.12);
+}
+
 body.page-landing::before {
   background-image: none;
   background:
@@ -1838,6 +1910,10 @@ body.page-landing .ambient {
 
 @media (max-width: 1100px) {
   body {
+    overflow-y: auto;
+  }
+
+  body.page-pbr {
     overflow-y: auto;
   }
 
@@ -1883,6 +1959,7 @@ body.page-landing .ambient {
   .pbr-docs-card {
     position: relative;
     top: auto;
+    height: auto;
     max-height: none;
   }
 
@@ -2003,10 +2080,6 @@ body.page-landing .ambient {
     padding-top: calc(var(--nav-height) + 70px);
   }
 
-  .pbr-page-header {
-    padding: 20px 18px;
-  }
-
   .landing-shell {
     width: calc(100vw - 20px);
     padding-top: calc(var(--nav-height) + 70px);
@@ -2065,6 +2138,7 @@ body.page-landing .ambient {
     grid-template-columns: 1fr;
   }
 
+  .pbr-formula-card,
   .formula-term-item {
     grid-template-columns: 1fr;
   }

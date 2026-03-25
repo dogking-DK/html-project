@@ -21,22 +21,6 @@
     </nav>
 
     <div class="pbr-shell">
-      <header class="pbr-page-header">
-        <p class="eyebrow">Interactive PBR Lab</p>
-        <h1>PBR 模型交互教学界面</h1>
-        <p class="pbr-page-lead">
-          左侧使用 WebGPU 实时渲染材质球，右侧同步展示当前 BRDF 模型的公式、参数含义和适用场景。
-          当前版本先聚焦不透明表面反射模型，完成 Lambert、Phong、Blinn-Phong 与 Cook-Torrance(GGX) 的联动演示，同时预留向
-          BSDF、BSSRDF 和体积散射扩展的数据结构。
-        </p>
-        <div class="hero-chip-row" aria-label="页面能力">
-          <span class="hero-chip">WebGPU</span>
-          <span class="hero-chip">KaTeX</span>
-          <span class="hero-chip">Model Switching</span>
-          <span class="hero-chip">Parameter Linking</span>
-        </div>
-      </header>
-
       <main class="pbr-layout">
         <section class="pbr-stage-card" aria-labelledby="pbrCanvasTitle">
           <div class="pbr-stage-header">
@@ -46,7 +30,8 @@
             </div>
             <div class="pbr-stage-meta">
               <span class="pbr-backend-badge" id="gpuStatusBadge">正在检查 WebGPU...</span>
-              <p id="pbrStageHint">拖拽球体旋转视角；左上角可显示或隐藏参数面板；详细解释固定在右侧教学面板中。</p>
+              <span class="pbr-backend-badge" id="environmentStatusBadge">HDR 环境准备中...</span>
+              <p id="pbrStageHint">拖拽球体旋转视角；左上角可显示或隐藏参数面板；场景参数里可以切换程序天空与 HDR 环境贴图。</p>
             </div>
           </div>
 
@@ -96,6 +81,19 @@
                     <h4>场景参数</h4>
                   </div>
                   <div id="sceneControls"></div>
+                  <div class="environment-toolbox">
+                    <div class="environment-toolbox-top">
+                      <p class="control-group-tag">Environment Map</p>
+                      <span class="control-row-value" id="environmentStatusInline">准备中</span>
+                    </div>
+                    <button class="secondary-button environment-load-button" id="loadHdrFileButton" type="button">
+                      手动载入环境贴图
+                    </button>
+                    <input id="hdrFileInput" type="file" accept=".hdr" hidden />
+                    <p class="control-inline-note" id="environmentStatusText">
+                      该 HDR 只作为环境贴图参与背景、反射与折射采样，材质本身的颜色与参数仍由当前模型控制。
+                    </p>
+                  </div>
                 </section>
 
                 <section class="control-group">
@@ -117,7 +115,7 @@
               <p class="section-tag">Teaching Notes</p>
               <h2 id="pbrDocTitle">模型原理与公式说明</h2>
               <p id="pbrDocLead">
-                右侧内容会随着当前模型同步切换，包括核心思想、数学形式、参数解释、优缺点和典型应用场景。
+                右侧内容会随着当前模型同步切换，包括所属类别、核心思想、数学形式、参数解释、优缺点和典型应用场景。
               </p>
             </div>
 
